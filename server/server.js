@@ -1,7 +1,9 @@
 require('dotenv').config();
+
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const path = require('path');
 
 const eventRoutes = require('./routes/events');
 const registrationRoutes = require('./routes/registrations');
@@ -18,21 +20,34 @@ app.use('/api', registrationRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+  res.json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+  });
 });
 
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({ error: 'Route not found' });
-});
+// Serve React frontend in production
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, '../client/dist')));
+
+  app.use((req, res) => {
+    res.sendFile(
+      path.join(__dirname, '../client/dist/index.html')
+    );
+  });
+}
 
 // Global error handler
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ error: 'Internal server error', message: err.message });
+
+  res.status(500).json({
+    error: 'Internal server error',
+    message: err.message,
+  });
 });
 
-// Connect to MongoDB and start server
+// Connect MongoDB and start server
 const PORT = process.env.PORT || 5000;
 const MONGODB_URI = process.env.MONGODB_URI;
 
@@ -45,6 +60,7 @@ mongoose
   .connect(MONGODB_URI)
   .then(() => {
     console.log('✅ Connected to MongoDB Atlas');
+
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
     });
